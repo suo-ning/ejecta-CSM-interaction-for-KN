@@ -1,0 +1,50 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import scipy.constants as C
+
+
+
+
+dict = {'r':[4.86  * 10**14, 0, "r_s", 'fr_s']}
+
+
+
+
+for mu in dict:
+    dict[mu][3] = open('SUM_0.0001_%sMv.txt' % mu, 'w')
+    t1, Mv1,Fv1 = np.genfromtxt('Lra_%sMv.txt' % mu).transpose()
+    t2, Mv2,Fv2 = np.genfromtxt('Lsd_%sMv.txt' % mu).transpose()
+    t3, Mv3,Fv3 = np.genfromtxt('CSM_%sMv.txt' % mu).transpose()
+    t4, Mv4,Fv4 = np.genfromtxt('Lra_Lsd_%sMv.txt' % mu).transpose()
+    # ax1 = plt.subplot(111)
+    # plt.sca(ax1)
+    Mv_sum=[]
+    Fv_sum=Fv3+Fv4
+    for i in range(len(Fv_sum)):
+        M_v = -2.5 * np.log10((Fv_sum[i]) / (3631 * 10 ** (-23)))
+        dict[mu][3].write(str((i + 1) * 0.01) + '\t' + str(M_v) + '\n')
+        Mv_sum.append(M_v)
+
+    plt.plot(t1, Mv1, label='Lra', linewidth=2,linestyle='--')
+    plt.plot(t2, Mv2, label='Lsd', linewidth=2,linestyle='--')
+    plt.plot(t3, Mv3, label='CSM', linewidth=2,linestyle='--')
+    # plt.plot(t4, Mv4, label='Lra_Lsd', linewidth=2)
+
+    plt.plot(t3, Mv_sum, label='SUM', linewidth=2)
+
+    plt.xlim(0, 8)
+    plt.ylim(15, 45)
+    plt.xlabel("$\mathrm{log}_{10}t/s$", size=13)
+    plt.ylabel("Apparent Magnitude (AB)", size=16)
+    plt.yticks(fontproperties='Times New Roman', size=14)
+    plt.xticks(fontproperties='Times New Roman', size=14)
+
+
+
+
+plt.gca().invert_yaxis()
+plt.legend(loc='upper left', prop = {'size':12})
+# plt.title('Lra+Lsd')
+plt.show()
+
+print("Finished!")
