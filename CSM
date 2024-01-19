@@ -1,0 +1,173 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import scipy.constants as C
+from scipy import integrate
+from scipy import integrate
+c=C.c * 100
+# R_in=2.11*10**15
+# v_KN=0.1*c
+v_KN=0.1*c
+eff=0.9
+R_in=10**15
+
+q=10**8*1.7*10**-24
+
+dens_CSM=q
+# q=4.35*10**-13
+# dens_CSM=4.35*10**-13
+# M_ej=0.03*2*10**33
+M_ej=0.0001*2*10**33
+E_KN=10**49
+K=0.33
+M_CSM=10*2*10**33
+
+
+sig_SB=5.7*10**(-5)
+PI=np.pi
+c=C.c * 100
+d=0
+n=7
+gn=1/(4*PI*(n-d))*(2*(5-d)*(n-5)*E_KN)**((n-3)/2)/((3-d)*(n-3)*M_ej)**((n-5)/2)     #(2)
+Si=0
+A=1.2
+def R_cd(t):
+    return (A*gn/q)**(1/(n-Si))*t**((n-3)/(n-Si))         #(5)
+
+beta_FS=1.181
+beta_RS=0.935
+def R_FS(t):
+    return R_in+beta_FS*R_cd(t)         #(6)
+def R_RS(t):
+    return R_in+beta_RS*R_cd(t)          #(7)
+alph=-0.143
+
+t_RS=(v_KN/(beta_RS*(A*gn/q)**(1/(n-Si)))*(1-(3-n)*M_ej/(4*PI*v_KN**(3-n)*gn))**(1/(3-n)))**((n-Si)/(Si-3))    #(13)
+R_out=(3/4/PI/dens_CSM*M_CSM+R_in**3)**(1/3)              #(17)
+R_ph=R_out-2/3/K/dens_CSM
+M_CSM_th=4/3*PI*dens_CSM*(R_ph**3-R_in**3)
+
+t_FS_BO=((3-Si)*q**((3-n)/(n-Si))*(A*gn)**((Si-3)/(n-Si))/(4*PI*beta_FS**(3-Si)))**((n-Si)/((n-3)*(3-Si)))*M_CSM_th**((n-Si)/((n-3)*(3-Si)))
+
+t_int=R_in/v_KN
+
+
+
+def L_FS(t):
+    return 2*PI/(n-Si)**3*gn**((5-Si)/(n-Si))*q**((n-5)/(n-Si))*(n-3)**2*(n-5)*beta_FS**(5-Si)*A**((n-5)/(n-Si))*(t+t_int)**alph*(1 if t_FS_BO-t>0 else 0)
+def L_RS(t):
+    return 2*PI*(A*gn/q)**((5-n)/(n-Si))*beta_RS**(5-n)*gn*((n-5)/(n-3))*((3-Si)/(n-Si))**3*(t+t_int)**alph*(1 if t_RS-t>0 else 0)
+
+def L_inp_CSM(t):
+    return eff*(L_FS(t)+L_RS(t))
+t_diff=K*M_CSM_th/(13.8*c*R_ph)
+
+def f(t):
+    return np.exp(t / t_diff) * L_inp_CSM(t)
+def L(t):
+    l,err=integrate.quad(f,0,t)
+    return 1/t_diff*np.exp(-t/t_diff)*l
+
+
+print(M_CSM_th/(2*10**33),'=1.35')
+print(t_RS/86400,t_FS_BO/86400)
+print(t_diff/86400)
+
+# T=[]
+# L_i=[]
+# for i in range(100):
+#     ti=(i)*86400
+#     T.append(ti/86400)
+#     L_i.append(np.log10(L(ti)))
+# plt.plot(T,L_i)
+# plt.show()
+
+
+
+
+
+
+h=6.626 * 10**(-27.0)
+pc  = C.parsec * 100.0
+Mpc = 10**6 * pc
+DL = 1248.67 * Mpc
+kb     = 1.38 * 10**(-16.0)
+
+
+
+# T=[]
+# L_i=[]
+# Mv=[]
+# freq=8.19* 10**14
+# for i in range(N):
+#     ti=(i+1)*10000
+#     T.append(ti/86400)
+#     T_eff = (L(ti)/ (4.0 * PI * sig_SB * R_ph ** 2.0)) ** 0.25
+#     F_v = 2 * np.pi * h * freq ** 3 / (c ** 2) * (1 / (np.exp(h * freq / (kb * T_eff)) - 1)) * R_ph ** 2 / (DL ** 2)
+#     M_v = -2.5 * np.log10((F_v) / (3631 * 10 ** (-23)))
+#     Mv.append(M_v)
+# plt.plot(T, Mv,label='U',color='blue')
+# #     # L_i.append(L(ti)/(10**40))
+# #
+# print('结束')
+
+dict = {'r':[4.86  * 10**14, 0, "r_s", 'fr_s']}
+for mu in dict:
+    dict[mu][3] = open('CSM_%sMv.txt' % mu, 'w')
+    T=[]
+    L_i=[]
+    Mv=[]
+    freq=dict[mu][0]
+    i=0.01
+    while (i <=8):
+        t = 10 ** i
+        di=0.01
+
+        ti = t
+        # T.append(i)
+        T_eff = (L(ti)/ (4.0 * PI * sig_SB * R_ph ** 2.0)) ** 0.25
+        F_v = 2 * np.pi * h * freq ** 3 / (c ** 2) * (1 / (np.exp(h * freq / (kb * T_eff)) - 1)) * R_ph ** 2 / (DL ** 2)
+        M_v = -2.5 * np.log10((F_v) / (3631 * 10 ** (-23)))
+        # Mv.append(M_v)
+        dict[mu][3].write(str(i) + '\t' + str(M_v) +'\t'+str(F_v)+'\n')
+        # dict[mu][3].write(str(i) + '\t' + str(Mv) + '\t' + str(Fv) + '\n')
+
+        i = i + di
+    # plt.plot(T,Mv,label='r')
+    print('结束')
+
+# T=[]
+# L_i=[]
+# Mv=[]
+# freq=1.37* 10**14
+# for i in range(N):
+#     ti = (i + 1)*10000
+#     T.append(ti/86400)
+#     T_eff = (L(ti)/ (4.0 * PI * sig_SB * R_ph ** 2.0)) ** 0.25
+#     F_v = 2 * np.pi * h * freq ** 3 / (c ** 2) * (1 / (np.exp(h * freq / (kb * T_eff)) - 1)) * R_ph ** 2 / (DL ** 2)
+#     M_v = -2.5 * np.log10((F_v) / (3631 * 10 ** (-23)))
+#     Mv.append(M_v)
+# plt.plot(T,Mv,label='K',color='red')
+
+
+#
+#
+# plt.xscale('log')
+# plt.ylim(15,45)
+# plt.xlabel('t/day')
+# plt.ylabel('AB')
+# #
+#
+# plt.gca().invert_yaxis()
+# plt.legend(loc='lower right', prop = {'size':12})
+# plt.show()
+
+
+
+
+
+
+
+
+
+
+
