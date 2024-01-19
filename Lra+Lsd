@@ -1,0 +1,250 @@
+#   Lra+Lsd的能量进行注入
+#   质量去0.01个太阳质量
+#   抛射物的速度为0.1c
+#   不透明度为1
+#   距离取 400Mpc
+#   坍缩时表为600s
+#   平台的广度为 1.0 * 10**49
+#   steep decay 的 斜率为5
+
+import numpy as np
+import matplotlib.pyplot as plt
+import scipy.constants as C
+
+plt.figure(figsize=(8, 6))
+
+h      = 6.626 * 10**(-27.0)
+c      = C.c * 100 
+kb     = 1.38 * 10**(-16.0)
+a      = 7.566 * 10**(-15.0)
+mp     = 1.6 * 10**(-24.0)
+#n0     = 0.1
+n0     = 0.1
+
+mej    = 0.0001 * 2 * 10**33
+
+betaej = 0.1
+
+akap   = 1.0
+
+
+pc  = C.parsec * 100.0                                      # parsec   unit cm
+Mpc = 10**6 * pc                                           # unit cm
+
+Dis = 1248.67 * Mpc
+
+
+dict = {'r':[4.86  * 10**14, 0, "r_s", 'fr_s']}
+
+
+tp = 10**4
+Lp = 1.0 * 10**47
+alpha2 = -5
+
+
+def LNiCo(t):
+    LNiCo = 4 * 10**49 * (mej/0.01/(2*10**33))*(0.5-np.arctan((t-1.3)/0.11)/np.pi)**1.3
+    
+    return LNiCo
+
+def Lptf(t):
+    
+#    Lp = 3.0 * 10**47 * B14**2.0 * P3**(-4.0)
+#    tp = 6.7 * 10**4 * B14**(-2.0) * P3**2.0 
+#    if flag == 0:
+#        return 0
+#    else:
+    if t <= tp:
+        return Lp * (1 + t / tp)**(alpha2)
+    else:
+        return 0
+
+
+def delR(beta):
+    
+    delR = beta * c / (1 - beta)
+    
+    return delR
+
+def delVs(beta, gamma, R):
+    
+    Dop = 1./(gamma * (1 - beta))
+    delVs = 4 * np.pi * R**2.0 * beta * c * Dop
+    
+    return delVs
+
+def delmsw(beta, R):
+    
+    delmsw = 4 * np.pi * R**2.0 * beta * c * n0 * mp / (1.0 - beta)
+    
+    return delmsw
+
+def delEis(t, beta, gamma, R, Vs, Eis, ts):
+    
+    Dop = 1./(gamma * (1 - beta))
+
+    Lp  = Lptf(t)
+    Lps = (Lp+LNiCo(t))/Dop**2.0
+    tau = akap * R * mej / Vs
+    Les = Eis * c / R * (1 - np.exp(-1 / tau))
+    Ps  = Eis / (3.0 * Vs)
+    
+    delEis = (0.3 * Lps - Les - Ps * delVs(beta, gamma, R) / Dop) * Dop
+
+    return delEis
+
+def delgamma(t, beta, gamma, R, Vs, Eis, msw, ts):
+    
+    Dop = 1./(gamma * (1 - beta))
+    Lp  =  Lptf(t)
+    tau = akap * R *mej / Vs
+    Le  = Eis * c / R * Dop**2.0 * (1 - np.exp(-1 / tau))
+    
+    delgamma = (0.3 * Lp+LNiCo(t) - Le - gamma * delEis(t, beta, gamma, R, Vs, Eis, ts) - \
+                (gamma**2.0 -1)*c**2.0 * delmsw(beta, R))\
+                /(mej * c**2.0 + Eis + 2.0 * gamma * msw * c**2.0)
+                
+    return delgamma
+
+
+Fv_ra_sd=[]
+for mu in dict:
+    
+    dict[mu][3] = open('Lra_Lsd_%sMv.txt'%mu, 'w')
+    j = 1
+    
+    i  = 0.0
+    di = 0.0001
+    ts = 0.0
+    
+    R0   = 3.0 * 10**9.0
+    Vs0  = 1.33 * np.pi * R0**3.0
+    Eis0 = 0.5 * mej*(betaej * c)**2.0
+    gamma0 = 1.0 / np.sqrt(1.0 - betaej**2.0)
+    msw0 = 0.0
+    
+    
+    while(i <= 8):
+        
+        t = 10**i
+        dt = t * np.log(10) * di
+        
+        R = R0
+        Vs = Vs0
+        Eis = Eis0
+        gamma = gamma0
+        msw = msw0
+        beta = np.sqrt(1.0 - gamma**(-2))
+        
+        x1 = delR(beta)
+        y1 = delVs(beta, gamma, R)
+        z1 = delEis(t, beta, gamma, R, Vs, Eis, ts)
+        w1 = delgamma(t, beta, gamma, R, Vs, Eis, msw, ts)
+        u1 = delmsw(beta, R)
+        
+        R = R0 + 0.5 * x1 * dt
+        Vs = Vs0 + 0.5 * y1 * dt
+        Eis = Eis0 + 0.5 * z1 * dt
+        gamma = gamma0 + 0.5 * w1 * dt
+        msw = msw0 + 0.5 * u1 * dt
+        beta = np.sqrt(1.0 - gamma**(-2))
+        x2 = delR(beta)
+        y2 = delVs(beta, gamma, R)
+        z2 = delEis(t, beta, gamma, R, Vs, Eis, ts)
+        w2 = delgamma(t, beta, gamma, R, Vs, Eis, msw, ts)
+        u2 = delmsw(beta, R)
+        
+        R = R0 + 0.5 * x2 * dt
+        Vs = Vs0 + 0.5 * y2 * dt
+        Eis = Eis0 + 0.5 * z2 * dt
+        gamma = gamma0 + 0.5 * w2 * dt
+        msw = msw0 + 0.5 * u2 *dt
+        beta = np.sqrt(1.0 - gamma**(-2))
+        x3 = delR(beta)
+        y3 = delVs(beta, gamma, R)
+        z3 = delEis(t, beta, gamma, R, Vs, Eis, ts)
+        w3 = delgamma(t, beta, gamma, R, Vs, Eis, msw, ts)
+        u3 = delmsw(beta, R)
+        
+        R = R0 + x3 * dt
+        Vs = Vs0 + y3 * dt
+        Eis = Eis0 + z3 * dt
+        gamma = gamma0 + w3 * dt
+        msw = msw0 + u3 * dt
+        beta = np.sqrt(1.0 - gamma**(-2))
+        x4 = delR(beta)
+        y4 = delVs(beta, gamma, R)
+        z4 = delEis(t, beta, gamma, R, Vs, Eis, ts)
+        w4 = delgamma(t, beta, gamma, R, Vs, Eis, msw, ts)
+        u4 = delmsw(beta, R)
+        
+        R0 = R0 + (x1 + 2. * x2 + 2. * x3 + x4) * dt/6.0
+        Vs0 = Vs0 + (y1 + 2. * y2 + 2. * y3 + y4) * dt/6.0
+        Eis0 = Eis0 + (z1 + 2. * z2 + 2. * z3 + z4) * dt/6.0
+        gamma0 = gamma0 + (w1 + 2. * w2 + 2. * w3 + w4) * dt/6.0
+        msw0 = msw0 + (u1 + 2. *u2 + 2. * u3 + u4) * dt / 6.0
+        beta0 = np.sqrt(1.0 - gamma0**(-2))
+        Dop0 = 1./(gamma0*(1.0 - beta0))
+        
+        tau = akap * R0 * mej / Vs0
+        Les = Eis0 * c / R0*(1-np.exp(-1/tau))
+        Le0 = Les * (Dop0**2.0)
+        
+        Ts0 = (Eis0 / Vs0 /a)**0.25
+        T0 = Ts0 * Dop0 * 0.86 * 10**(-4)
+        
+        dts = dt * Dop0
+        ts = ts + dts
+        tds = np.sqrt(tau * R0 * ts / c)
+        rt = tds / ts
+        
+        Te   = (Eis0 / Vs0 / a)**(0.25)
+        Teff = Te * Dop0
+        Fv   = 2 * np.pi * h * dict[mu][0]**3 / c**2  * R0**2 / Dis**2 /(np.exp(h * dict[mu][0] / (kb * Teff))-1)
+        Mv = -2.5 * np.log10(Fv/3631 * 10**23)
+
+        if j%100==0:
+            dict[mu][3].write(str(i) + '\t' + str(Mv) +  '\t'+str(Fv) +'\n')
+
+
+        j = j + 1
+        i = i + di
+
+
+    dict[mu][3].close()
+       
+
+
+
+for mu in dict:
+    
+    t, Mv,Fv = np.genfromtxt('Lra_Lsd_%sMv.txt'%mu).transpose()
+
+    # ax1 = plt.subplot(111)
+    # plt.sca(ax1)
+    plt.plot(t, Mv, label=dict[mu][2],  linestyle='-',linewidth = 2)
+    plt.xlim(0, 8)
+    plt.ylim(15, 45)
+    plt.xlabel("$\mathrm{log}_{10}t/s$", size=16)
+    plt.ylabel("Apparent Magnitude (AB)", size=16)
+    # plt.yticks(fontproperties = 'Time New Roman', size=14)
+    # plt.xticks(fontproperties = 'Time New Roman', size=14)
+    plt.gca().invert_yaxis()
+
+    
+#plt.axhline(26.5, color='red', linewidth=2, linestyle='--', label='LSST')
+#plt.axhline(24.7, color='black', linewidth=2, linestyle='--', label='normal-LSST')
+#plt.axhline(22, color='blue', linewidth=2, linestyle='--', label='PTF')
+#plt.axhline(23.5, color='green', linewidth=2, linestyle='--', label='Pan-STARRS')
+
+plt.legend(loc='upper right', prop = {'size':12})
+
+
+#plt.savefig('M001B01A1.eps')
+plt.show()
+
+print("Finished!")
+
+
+
+
